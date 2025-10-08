@@ -1,5 +1,5 @@
 # RAG Log Analyzer
-
+**[WARNING]: This tool is a POC and is very slow to create the vector DB**
 Transform your massive log files into an intelligent, queryable knowledge base using Retrieval-Augmented Generation (RAG). Ask questions in plain English and get intelligent insights from your logs.
 
 ## 🚀 Features

@@ -1,7 +1,7 @@
 # RAG Log Analyser
 **[WARNING]: This tool is a POC and is very slow to create the vector DB**
 
-Transform your massive log files into an intelligent, queryable knowledge base using Retrieval-Augmented Generation (RAG). Ask questions in plain English and get intelligent insights from your logs.
+Transform log files into an intelligent, queryable knowledge base using Retrieval-Augmented Generation (RAG). Ask questions in plain English and get intelligent insights from your logs.
 
 ## 🚀 Features
 
@@ -70,27 +70,6 @@ python main.py
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # Project documentation
 └── LICENSE                   # MIT License
-```
-
-### System Architecture
-
-```mermaid
-graph TD
-    A[Log Files] --> B[Custom Loader]
-    B --> C[Line-by-Line Processing]
-    C --> D[Document Objects]
-    D --> E[HuggingFace Embeddings]
-    E --> F[Vector Embeddings]
-    F --> G[ChromaDB Storage]
-    G --> H[Vector Database]
-    
-    I[User Query] --> J[Query Embedding]
-    J --> K[Similarity Search]
-    K --> L[Relevant Log Entries]
-    L --> M[Mistral LLM]
-    M --> N[Intelligent Response]
-    
-    H --> K
 ```
 
 ### RAG Pipeline Flow

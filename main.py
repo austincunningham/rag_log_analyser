@@ -27,42 +27,51 @@ print("                                                                         
 print("                                                                                          ") 
 
 # Load and prepare documents
-LOG_DIRECTORY = input("➡️ Please enter the full path to the log directory (e.g., /home/user/support/): ")
-if not os.path.isdir(LOG_DIRECTORY):
-    print(f"❌ Error: Directory not found at '{LOG_DIRECTORY}'. Please check the path.")
-    sys.exit(1)
+try:
+    LOG_DIRECTORY = input("-> Please enter the full path to the log directory (e.g., /home/user/support/): ")
+    if not os.path.isdir(LOG_DIRECTORY):
+        print(f"Error: Directory not found at '{LOG_DIRECTORY}'. Please check the path.")
+        sys.exit(1)
+except KeyboardInterrupt:
+    print("\n\nExiting...")
+    sys.exit(0)
 
-print(f"📂 Loading log files from: {LOG_DIRECTORY}...")
-# docs = load_sop_files("/home/austincunningham/support/")
-docs = load_sop_files(LOG_DIRECTORY)
-print(f"✅ Loaded {len(docs)} log entries from files")
+print(f"Loading log files from: {LOG_DIRECTORY}...")
+try:
+    # docs = load_sop_files("/home/austincunningham/support/")
+    docs = load_sop_files(LOG_DIRECTORY)
+    print(f"Loaded {len(docs)} log entries from files")
+except KeyboardInterrupt:
+    print("\n\nFile loading interrupted by user. Exiting ...")
+    sys.exit(0)
 
-# **CRITICAL CHANGE: Log lines should be treated as their own chunks.**
-# If you implemented the line-by-line loader, you can comment this out:
-# splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-# chunks = splitter.split_documents(docs)
+
 chunks = docs # <-- If the loader returns Document objects for each line, use them directly.
 
 
-print(f"🧠 Creating vector database with {len(chunks)} log entries...")
-print("⏳ This may take several minutes for large files...")
+print(f"Creating vector database with {len(chunks)} log entries...")
+print("This may take several minutes for large files...")
 
 # Check if user wants to rebuild database
 db_path = "./chroma_db"
-if os.path.exists(db_path):
-    rebuild_choice = input("🔄 Vector database already exists. Rebuild? (y/n): ").lower().strip()
-    if rebuild_choice in ('y', 'yes'):
-        print("🗑️ Removing existing database...")
-        import shutil
-        shutil.rmtree(db_path)
-        db_exists = False
+try:
+    if os.path.exists(db_path):
+        rebuild_choice = input("Vector database already exists. Rebuild? (y/n): ").lower().strip()
+        if rebuild_choice in ('y', 'yes'):
+            print("Removing existing database...")
+            import shutil
+            shutil.rmtree(db_path)
+            db_exists = False
+        else:
+            db_exists = True
     else:
-        db_exists = True
-else:
-    db_exists = False
+        db_exists = False
+except KeyboardInterrupt:
+    print("\n\nDatabase setup interrupted by user. Exiting...")
+    sys.exit(0)
 
 # Initialize embeddings with optimized settings
-print("🚀 Using optimized embedding model for faster processing...")
+print("Using optimized embedding model for faster processing...")
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2",
     model_kwargs={'device': 'cpu'},
@@ -72,38 +81,42 @@ embeddings = HuggingFaceEmbeddings(
     }
 )
 
-print("📊 Generating embeddings...")
-print("💡 This is the slowest step - generating vectors for each log line...")
+print("Generating embeddings...")
+print("This is the slowest step - generating vectors for each log line...")
 
 # Process in batches to show progress and reduce memory usage
 batch_size = 1000
 total_chunks = len(chunks)
-print(f"📊 Processing {total_chunks:,} log entries in batches of {batch_size:,}...")
+print(f"Processing {total_chunks:,} log entries in batches of {batch_size:,}...")
 
 # Create or load vector database
-if db_exists:
-    print("📂 Found existing vector database, loading...")
-    # Suppress ChromaDB deprecation warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        db = Chroma(
-            persist_directory=db_path,
-            embedding_function=embeddings
-        )
-    print("✅ Vector database loaded successfully")
-else:
-    print("📊 Creating new vector database...")
-    # Suppress ChromaDB deprecation warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        # Create database with batching
-        db = Chroma.from_documents(
-            chunks, 
-            embeddings,
-            persist_directory=db_path,
-            collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
-        )
-    print("✅ Vector database created and saved")
+try:
+    if db_exists:
+        print("Found existing vector database, loading...")
+        # Suppress ChromaDB deprecation warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            db = Chroma(
+                persist_directory=db_path,
+                embedding_function=embeddings
+            )
+        print("Vector database loaded successfully")
+    else:
+        print("Creating new vector database...")
+        # Suppress ChromaDB deprecation warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            # Create database with batching
+            db = Chroma.from_documents(
+                chunks, 
+                embeddings,
+                persist_directory=db_path,
+                collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
+            )
+        print("Vector database created and saved")
+except KeyboardInterrupt:
+    print("\n\nVector database creation interrupted by user. Exiting...")
+    sys.exit(0)
 
 
 retriever = db.as_retriever()
@@ -114,35 +127,37 @@ llm = OllamaLLM(model="mistral")
 qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, return_source_documents=True)
 
 
-print("🤖 Log Analyser Assistant ready. Type your question below. Type 'exit' to quit.")
+print("Log Analyser Assistant ready. Type your question below. Type 'exit' to quit.")
 
 
-# Chat loop
-while True:
-   # **SUGGESTION: Change query for log analysis to ask for patterns/errors.**
-   query = input("\n📝 You (e.g., 'What errors occurred in the last hour?'): ")
-   if query.lower() in ("exit", "quit"):
-       print("👋 Bye! Take care.")
-       break
 
-   # **IMPROVEMENT: Add a system prompt to the query to guide the LLM's role**
-   analysis_query = (
-       "You are an expert log analyser. Review the provided log entries and answer the user's question. "
-       "Provide a concise summary, highlight any potential issues, and mention the relevant source log files. "
-       f"Question: {query}"
-   )
+try:
+    while True:
+       query = input("\nYou (e.g., 'What errors occurred in the last hour?'): ")
+       if query.lower() in ("exit", "quit"):
+           break
 
+       analysis_query = (
+           "You are an expert log analyser. Review the provided log entries and answer the user's question. "
+           "Provide a concise summary, highlight any potential issues, and mention the relevant source log files. "
+           f"Question: {query}"
+       )
 
-   # Call the chain with the enhanced query
-   result = qa.invoke({"query": analysis_query})
+       try:
 
+           result = qa.invoke({"query": analysis_query})
 
-   print("\n🤖 Assistant:\n", result["result"])
+           print("\nAssistant:\n", result["result"])
 
+           print("\nSources:")
+           for doc in result["source_documents"]:
+               source = doc.metadata.get('source')
+               line_number = doc.metadata.get('line_number')
+               print(f" - {source}{f' (Line {line_number})' if line_number else ''}")
+       except KeyboardInterrupt:
+           print("\n\n Query processing interrupted. You can ask another question or type 'exit' to quit.")
+           continue
 
-   print("\n📎 Sources:")
-   # **IMPROVEMENT: Include line number if the custom loader was used**
-   for doc in result["source_documents"]:
-       source = doc.metadata.get('source')
-       line_number = doc.metadata.get('line_number')
-       print(f" - {source}{f' (Line {line_number})' if line_number else ''}")
+except KeyboardInterrupt:
+    print("\n\nExiting...")
+    sys.exit(0)

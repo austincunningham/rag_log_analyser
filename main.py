@@ -1,4 +1,9 @@
 print("Starting script...")
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*Chroma.*deprecated.*")
+warnings.filterwarnings("ignore", message=".*langchain-chroma.*")
+
 from utils.loaders import load_sop_files
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
@@ -10,6 +15,16 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import sys
 import os
 
+print("_______________________________________________________________________________")
+print(" _ __ __ _  __ _    | | ___   __ _      __ _ _ __   __ _| |_   _ ___  ___ _ __")
+print("| '__/ _` |/ _` |___| |/ _ \\ / _` |___ / _` | '_ \\ / _` | | | | / __|/ _ | '__|")
+print("| | | (_| | (_| |___| | (_) | (_| |___| (_| | | | | (_| | | |_| \\__ |  __| |")
+print("|_|  \\__,_|\\__, |   |_|\\___/ \\__, |    \\__,_|_| |_|\\__,_|_|\\__, |___/\\___|_|")
+print("           |___/              |___/                         |___/")
+print("_______________________________________________________________________________")
+print("                                                                                          ")
+print("                                                                                          ")
+print("                                                                                          ") 
 
 # Load and prepare documents
 LOG_DIRECTORY = input("➡️ Please enter the full path to the log directory (e.g., /home/user/support/): ")
@@ -68,20 +83,26 @@ print(f"📊 Processing {total_chunks:,} log entries in batches of {batch_size:,
 # Create or load vector database
 if db_exists:
     print("📂 Found existing vector database, loading...")
-    db = Chroma(
-        persist_directory=db_path,
-        embedding_function=embeddings
-    )
+    # Suppress ChromaDB deprecation warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        db = Chroma(
+            persist_directory=db_path,
+            embedding_function=embeddings
+        )
     print("✅ Vector database loaded successfully")
 else:
     print("📊 Creating new vector database...")
-    # Create database with batching
-    db = Chroma.from_documents(
-        chunks, 
-        embeddings,
-        persist_directory=db_path,
-        collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
-    )
+    # Suppress ChromaDB deprecation warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # Create database with batching
+        db = Chroma.from_documents(
+            chunks, 
+            embeddings,
+            persist_directory=db_path,
+            collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
+        )
     print("✅ Vector database created and saved")
 
 

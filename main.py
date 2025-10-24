@@ -32,6 +32,20 @@ chunks = docs # <-- If the loader returns Document objects for each line, use th
 print(f"🧠 Creating vector database with {len(chunks)} log entries...")
 print("⏳ This may take several minutes for large files...")
 
+# Check if user wants to rebuild database
+db_path = "./chroma_db"
+if os.path.exists(db_path):
+    rebuild_choice = input("🔄 Vector database already exists. Rebuild? (y/n): ").lower().strip()
+    if rebuild_choice in ('y', 'yes'):
+        print("🗑️ Removing existing database...")
+        import shutil
+        shutil.rmtree(db_path)
+        db_exists = False
+    else:
+        db_exists = True
+else:
+    db_exists = False
+
 # Initialize embeddings with optimized settings
 print("🚀 Using optimized embedding model for faster processing...")
 embeddings = HuggingFaceEmbeddings(
@@ -51,14 +65,24 @@ batch_size = 1000
 total_chunks = len(chunks)
 print(f"📊 Processing {total_chunks:,} log entries in batches of {batch_size:,}...")
 
-# Create database with batching
-db = Chroma.from_documents(
-    chunks, 
-    embeddings,
-    collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
-)
-
-print("✅ Vector database created successfully")
+# Create or load vector database
+if db_exists:
+    print("📂 Found existing vector database, loading...")
+    db = Chroma(
+        persist_directory=db_path,
+        embedding_function=embeddings
+    )
+    print("✅ Vector database loaded successfully")
+else:
+    print("📊 Creating new vector database...")
+    # Create database with batching
+    db = Chroma.from_documents(
+        chunks, 
+        embeddings,
+        persist_directory=db_path,
+        collection_metadata={"hnsw:space": "cosine"}  # Optimize for cosine similarity
+    )
+    print("✅ Vector database created and saved")
 
 
 retriever = db.as_retriever()
